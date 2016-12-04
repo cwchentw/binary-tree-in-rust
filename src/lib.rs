@@ -23,6 +23,28 @@ impl<T> Tree<T> {
 }
 
 impl<T> Tree<T> where T: cmp::PartialOrd + clone::Clone {
+    pub fn insert(&mut self, value: T) {
+        unsafe {
+            let node = libc::malloc(
+                mem::size_of::<Node<T>>() as libc::size_t)
+                as *mut Node<T>;
+            ptr::write(node, Node {
+                data: value.clone(),
+                right: ptr::null_mut(),
+                left: ptr::null_mut()
+            });
+
+            if self.root.is_null() {
+                self.root = node;
+            } else {
+                let p_root = (*self).root;
+                self.insert_to(p_root, value.clone());
+            }
+        }
+    }
+}
+
+impl<T> Tree<T> where T: cmp::PartialOrd + clone::Clone {
     fn insert_to(&mut self, node: *mut Node<T>, value: T) {
         unsafe {
             let new_node = libc::malloc(
@@ -53,24 +75,13 @@ impl<T> Tree<T> where T: cmp::PartialOrd + clone::Clone {
 }
 
 impl<T> Tree<T> where T: cmp::PartialOrd + clone::Clone {
-    pub fn insert(&mut self, value: T) {
-        unsafe {
-            let node = libc::malloc(
-                mem::size_of::<Node<T>>() as libc::size_t)
-                as *mut Node<T>;
-            ptr::write(node, Node {
-                data: value.clone(),
-                right: ptr::null_mut(),
-                left: ptr::null_mut()
-            });
-
-            if self.root.is_null() {
-                self.root = node;
-            } else {
-                let p_root = (*self).root;
-                self.insert_to(p_root, value.clone());
-            }
+    pub fn find(&mut self, value: T) -> bool {
+        if self.root.is_null() {
+            return false;
         }
+
+        let p_root = (*self).root;
+        self.find_to(p_root, value.clone())
     }
 }
 
@@ -99,13 +110,13 @@ impl<T> Tree<T> where T: cmp::PartialOrd + clone::Clone {
 }
 
 impl<T> Tree<T> where T: cmp::PartialOrd + clone::Clone {
-    pub fn find(&mut self, value: T) -> bool {
+    pub fn max<'a>(&mut self) -> Result<T, &'a str> {
         if self.root.is_null() {
-            return false;
+            return Err("Empty tree");
         }
 
         let p_root = (*self).root;
-        self.find_to(p_root, value.clone())
+        self.max_to(p_root)
     }
 }
 
@@ -126,13 +137,13 @@ impl<T> Tree<T> where T: cmp::PartialOrd + clone::Clone {
 }
 
 impl<T> Tree<T> where T: cmp::PartialOrd + clone::Clone {
-    pub fn max<'a>(&mut self) -> Result<T, &'a str> {
+    pub fn min<'a>(&mut self) -> Result<T, &'a str> {
         if self.root.is_null() {
             return Err("Empty tree");
         }
 
         let p_root = (*self).root;
-        self.max_to(p_root)
+        self.min_to(p_root)
     }
 }
 
@@ -153,13 +164,13 @@ impl<T> Tree<T> where T: cmp::PartialOrd + clone::Clone {
 }
 
 impl<T> Tree<T> where T: cmp::PartialOrd + clone::Clone {
-    pub fn min<'a>(&mut self) -> Result<T, &'a str> {
+    pub fn delete(&mut self, value: T) {
         if self.root.is_null() {
-            return Err("Empty tree");
+            panic!("No such value");
         }
 
         let p_root = (*self).root;
-        self.min_to(p_root)
+        (*self).root = self.delete_to(p_root, value);
     }
 }
 
@@ -197,14 +208,15 @@ impl<T> Tree<T> where T: cmp::PartialOrd + clone::Clone {
     }
 }
 
-impl<T> Tree<T> where T: cmp::PartialOrd + clone::Clone {
-    pub fn delete(&mut self, value: T) {
-        if self.root.is_null() {
-            panic!("No such value");
+
+impl<T> Drop for Tree<T> {
+    fn drop(&mut self) {
+        if (*self).root.is_null() {
+            return;
         }
 
         let p_root = (*self).root;
-        (*self).root = self.delete_to(p_root, value);
+        self.drop_to(p_root);
     }
 }
 
@@ -219,17 +231,6 @@ impl<T> Tree<T> {
             self.drop_to((*node).right);
             libc::free(node as *mut libc::c_void);
         }
-    }
-}
-
-impl<T> Drop for Tree<T> {
-    fn drop(&mut self) {
-        if (*self).root.is_null() {
-            return;
-        }
-
-        let p_root = (*self).root;
-        self.drop_to(p_root);
     }
 }
 
